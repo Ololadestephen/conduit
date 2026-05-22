@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -142,6 +143,9 @@ export function WorkflowHistory({ onHistoryChange }: WorkflowHistoryProps) {
               </Button>
             )}
           </div>
+          <DialogDescription className="sr-only">
+            Review recent workflow runs, reopen result pages, or remove saved history entries.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto mt-4">
@@ -160,44 +164,51 @@ export function WorkflowHistory({ onHistoryChange }: WorkflowHistoryProps) {
                   key={run.id}
                   className="border border-border bg-background/50 overflow-hidden"
                 >
-                  <button
-                    onClick={() => toggleExpand(run.id)}
-                    className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      {run.status === 'success' ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-500 shrink-0" />
-                      )}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-serif text-2xl font-semibold leading-none">
-                            {run.nodes.length} nodes
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatTimestamp(run.timestamp)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDuration(run.duration)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" />
-                            {formatPrice(run.totalCost)}
-                          </span>
+                  <div className="flex items-start gap-3 p-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(run.id)}
+                      className="flex min-w-0 flex-1 items-center justify-between text-left hover:text-foreground transition-colors"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        {run.status === 'success' ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-500 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-serif text-2xl font-semibold leading-none">
+                              {run.nodes.length} nodes
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimestamp(run.timestamp)}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatDuration(run.duration)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              {formatPrice(run.totalCost)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
+                      {expandedRun === run.id ? (
+                        <ChevronDown className="ml-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="ml-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                      )}
+                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
                       <Button
                         asChild
                         variant="outline"
                         size="sm"
                         className="h-8 gap-1.5"
-                        onClick={(e) => e.stopPropagation()}
                       >
                         <Link href={`/app/runs/${run.id}`}>
                           Open
@@ -205,23 +216,18 @@ export function WorkflowHistory({ onHistoryChange }: WorkflowHistoryProps) {
                         </Link>
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation()
+                        onClick={() => {
                           void handleDelete(run.id)
                         }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                      {expandedRun === run.id ? (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      )}
                     </div>
-                  </button>
+                  </div>
 
                   <AnimatePresence>
                     {expandedRun === run.id && (

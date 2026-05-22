@@ -1408,7 +1408,7 @@ export async function executeMarketOpportunityScanner(
   const riskTolerance = String(config.riskTolerance || 'medium')
   const searchPrompt = `${focus.discoveryTerms}. ${marketInput.market}`
   const preAgentCandidateLimit = Math.max(8, Math.min(12, maxCandidates * 3))
-  const catalystCandidateLimit = Math.max(2, Math.min(4, maxCandidates))
+  const catalystCandidateLimit = Math.max(1, Math.min(2, maxCandidates))
   const [marketCandidates, liveContext] = await Promise.all([
     fetchMarketCandidates(searchPrompt, preAgentCandidateLimit, focusArea),
     fetchLiveMarketContext(`${focus.label}: ${marketInput.market}. ${focus.catalystTerms}. ${focus.strongestSources}. current updates ${scanDepth} Polymarket Kalshi prediction markets`),
@@ -1438,6 +1438,70 @@ export async function executeMarketOpportunityScanner(
       return `${index + 1}. ${opportunity.market} | ${opportunity.outcomeName} | ${arbitrage?.cheaperPlatform} ${formatPercentValue(arbitrage?.cheaperPrice || 0)} vs ${arbitrage?.richerPlatform} ${formatPercentValue(arbitrage?.richerPrice || 0)} | spread ${formatPercentValue(opportunity.estimatedEdge || 0)} | match ${(Number(arbitrage?.matchScore || 0) * 100).toFixed(0)}/100`
     }).join('\n')
     : 'No reliable Polymarket/Kalshi cross-market spread was detected from the live candidate feed.'
+  const useFastResearchDesk = config.fastResearchDesk !== false
+
+  if (useFastResearchDesk) {
+    const bestAvailableOpportunity = buildBestAvailableOpportunity(catalystResearch, minMarketProbability, {
+      bankroll,
+      riskTolerance,
+      focusArea,
+    })
+    const bestArbitrage = arbitrageSpreads
+      .sort((a, b) => Number(b.evScore || 0) - Number(a.evScore || 0))[0]
+    const rankedOpportunity = bestArbitrage || bestAvailableOpportunity
+    const researchedWatchlist = buildResearchedWatchlist(catalystResearch, minMarketProbability)
+    const monitorWatchlist = bestAvailableOpportunity ? [opportunityToWatchlist(bestAvailableOpportunity)] : []
+    const candidateWatchlist = buildCandidateWatchlist(marketCandidates, minMarketProbability)
+    const finalUnderratedMarketsBase = dedupeWatchlist([...monitorWatchlist, ...researchedWatchlist])
+    const finalUnderratedMarkets = hasExactPricedWatchlist(finalUnderratedMarketsBase)
+      ? finalUnderratedMarketsBase
+      : dedupeWatchlist([...finalUnderratedMarketsBase, ...candidateWatchlist])
+    const hasQualifiedTrade = rankedOpportunity?.status === 'qualified'
+    const rankedOpportunities = rankedOpportunity
+      ? [{ ...rankedOpportunity, status: hasQualifiedTrade ? 'qualified' as const : 'screening' as const }]
+      : []
+
+    return {
+      market: rankedOpportunity?.market || finalUnderratedMarkets[0]?.market || marketInput.market,
+      marketType: classification.marketType,
+      answerMode: rankedOpportunity ? 'trade' : classification.answerMode,
+      answer: rankedOpportunity
+        ? `${focus.label} returned one best live scout pick from the exchange feed.`
+        : finalUnderratedMarkets.length > 0
+          ? `${focus.label} found priced markets to monitor, but no qualified trade cleared the evidence bar.`
+          : `${focus.label} could not load exact tradable Polymarket/Kalshi candidates.`,
+      competitors: rankedOpportunities.map((opportunity) => opportunity.outcomeName).filter(Boolean),
+      outcomeName: rankedOpportunity?.outcomeName || finalUnderratedMarkets[0]?.outcomeName || marketInput.outcomeName,
+      marketProbability: rankedOpportunity?.marketProbability,
+      exactMarketPriced: Boolean(rankedOpportunity),
+      thesis: rankedOpportunity?.reason || `No qualified trade cleared the ${focusArea} desk guardrails.`,
+      keySignals: rankedOpportunities.flatMap((opportunity) => [opportunity.reason, opportunity.catalyst].filter(Boolean) as string[]),
+      risks: [
+        'Markets stay watchlist-only unless candidate-specific catalyst research supports fair probability.',
+        'Market prices can move before execution.',
+      ],
+      needsMoreDetail: false,
+      missingFields: [],
+      sourceWeights: liveContext?.sources.map((source) => ({
+        source: source.title,
+        credibility: source.url.includes('polymarket.com') || source.url.includes('kalshi.com') ? 'high' as const : 'medium' as const,
+        impact: 'neutral' as const,
+      })) || [],
+      sourceCredibility: liveContext ? 'medium' : 'low',
+      liveSources: [
+        ...flattenCandidateSources(catalystResearch),
+        ...(liveContext?.sources.map((source) => ({ title: source.title, url: source.url })) || []),
+      ].filter((source) => source.title || source.url),
+      opportunities: rankedOpportunities,
+      underratedMarkets: finalUnderratedMarkets,
+      scanSummary: rankedOpportunity
+        ? `${focus.label} selected one strongest scout pick from ${marketCandidates.length} live priced markets. ${platformSummary} It includes exact pricing, conservative sizing, and an explicit promotion trigger, but remains screening until catalyst evidence improves.`
+        : finalUnderratedMarkets.length > 0
+          ? `${focus.label} reviewed ${marketCandidates.length} live priced markets. ${platformSummary} Returned the best watchlist candidates; no qualified trade cleared the evidence bar.`
+          : `${focus.label} could not load exact tradable Polymarket/Kalshi candidates. Generic prediction-market articles were ignored because they are not tradeable markets.`,
+    }
+  }
+
   const enrichedInput = `${sanitizedInput}
 
 Pre-agent live market feed from public Polymarket/Kalshi APIs. These are the only markets you may rank:
