@@ -19,6 +19,8 @@ interface ProviderAttempt {
   model: string
 }
 
+const DEFAULT_AI_REQUEST_TIMEOUT_MS = 20_000
+
 export function getAIModel() {
   return getProviderAttempts()[0]?.model || 'gpt-5-mini'
 }
@@ -98,6 +100,33 @@ function uniqProviders(providers: SupportedAIProvider[]) {
   return Array.from(new Set(providers.filter((provider) => ['b-ai', 'openrouter', 'groq', 'ollama'].includes(provider))))
 }
 
+function getAIRequestTimeoutMs() {
+  const configured = Number(process.env.AI_REQUEST_TIMEOUT_MS)
+  return Number.isFinite(configured)
+    ? Math.max(5_000, Math.min(60_000, configured))
+    : DEFAULT_AI_REQUEST_TIMEOUT_MS
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = getAIRequestTimeoutMs()) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`AI provider request timed out after ${Math.round(timeoutMs / 1000)}s`)
+    }
+
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 async function generateWithBAI(model: string, options: GenerateAITextOptions): Promise<GenerateAITextResult> {
   const apiKey = process.env.B_AI_API_KEY?.trim()
   if (!apiKey) throw new Error('B_AI_API_KEY is not configured')
@@ -142,7 +171,7 @@ async function requestBAIModel(model: string, options: GenerateAITextOptions, ap
 
   for (const attempt of attempts) {
     try {
-      const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      const response = await fetchWithTimeout(`${baseUrl}/v1/chat/completions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -232,7 +261,7 @@ async function generateWithOpenRouter(model: string, options: GenerateAITextOpti
   const apiKey = process.env.OPENROUTER_API_KEY?.trim()
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured')
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const response = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -264,7 +293,7 @@ async function generateWithOpenRouter(model: string, options: GenerateAITextOpti
 
 async function generateWithOllama(model: string, options: GenerateAITextOptions): Promise<GenerateAITextResult> {
   const baseUrl = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '')
-  const response = await fetch(`${baseUrl}/api/generate`, {
+  const response = await fetchWithTimeout(`${baseUrl}/api/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

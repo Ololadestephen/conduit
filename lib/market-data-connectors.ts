@@ -749,6 +749,9 @@ function collectKalshiEventMarkets(data: unknown): unknown[] {
 }
 
 async function fetchJson(url: string, options: { cache?: RequestCache } = {}): Promise<unknown | null> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 6_000)
+
   try {
     const response = await fetch(url, {
       cache: options.cache,
@@ -757,12 +760,15 @@ async function fetchJson(url: string, options: { cache?: RequestCache } = {}): P
         Accept: 'application/json',
         'User-Agent': 'ConduitMarketScanner/0.1',
       },
+      signal: controller.signal,
     })
 
     if (!response.ok) return null
     return response.json()
   } catch {
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 

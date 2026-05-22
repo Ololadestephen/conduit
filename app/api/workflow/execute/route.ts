@@ -4,7 +4,6 @@ import { calculateWorkflowCost, formatAgentPrice, getAgent, getAgentPaymentPlan 
 import { createSimulatedReceipt } from '@/lib/payment-simulation'
 import { WorkflowExecutionRequestSchema } from '@/lib/validation-schemas'
 import { workflowRateLimiter, getClientIdentifier, checkRateLimit, addRateLimitHeaders } from '@/lib/rate-limit'
-import { fetchLiveMarketContext } from '@/lib/live-market-context'
 import { fetchMarketCandidates, type MarketFocusArea } from '@/lib/market-data-connectors'
 import {
   executeSummarizer,
@@ -140,20 +139,20 @@ async function buildWorkflowLiveData(
   nodes: Array<{ agentId: string; config?: Record<string, unknown> }>
 ): Promise<WorkflowLiveData | null> {
   if (!nodes.some((node) => MARKET_AGENT_IDS.has(node.agentId))) return null
+  if (nodes.some((node) => ['autonomous-signal-desk', 'market-opportunity-scanner'].includes(node.agentId))) {
+    return null
+  }
 
   const focusArea = getWorkflowFocusArea(nodes, input)
   const query = `${input.slice(0, 800)} ${focusArea} live Polymarket Kalshi prediction markets current prices current news`
 
   try {
-    const [marketCandidates, liveContext] = await Promise.all([
-      fetchMarketCandidates(query, 8, focusArea),
-      fetchLiveMarketContext(query),
-    ])
+    const marketCandidates = await fetchMarketCandidates(query, 8, focusArea)
 
     return {
       generatedAt: new Date().toISOString(),
       focusArea,
-      summary: liveContext?.summary || 'Live market/news context unavailable; exchange candidate feed still attempted.',
+      summary: 'Live exchange candidate feed loaded. Candidate-specific catalyst research runs inside the market desk when needed.',
       marketCandidates: marketCandidates.slice(0, 8).map((candidate) => ({
         platform: candidate.platform,
         title: candidate.title,
@@ -165,10 +164,7 @@ async function buildWorkflowLiveData(
         closeTime: candidate.closeTime,
         url: candidate.url,
       })),
-      sources: liveContext?.sources.slice(0, 6).map((source) => ({
-        title: source.title,
-        url: source.url,
-      })) || [],
+      sources: [],
     }
   } catch (error) {
     console.warn('Workflow live data prefetch failed:', error)
@@ -263,7 +259,7 @@ async function workflowExecuteHandler(request: NextRequest) {
       // Execute agent with 1 retry on failure
       let output: unknown
       let retryCount = 0
-      const maxRetries = 1
+      const maxRetries = MARKET_AGENT_IDS.has(node.agentId) ? 0 : 1
 
       while (retryCount <= maxRetries) {
         try {
