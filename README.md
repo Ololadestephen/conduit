@@ -12,8 +12,7 @@ Today Conduit is strongest as:
 - a **paid multi-agent workflow** where each run produces a research result plus a Circle/Arc settlement receipt
 - a **judge-friendly demo path** through `Agora Hackathon Demo` and `Signal Desk`
 
-[Live app](https://arcconduit.vercel.app/)
-
+[Live app](https://conduitarc.vercel.app/)
 ![Conduit](https://img.shields.io/badge/Arc_Network-Testnet-purple) ![Next.js](https://img.shields.io/badge/Next.js-16-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 
 ## Demo
