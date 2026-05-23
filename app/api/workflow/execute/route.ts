@@ -99,6 +99,33 @@ const MARKET_AGENT_IDS = new Set<string>([
   'betting-brief',
 ])
 
+const DEFAULT_AGENT_TIMEOUT_MS = 25_000
+
+function getAgentTimeoutMs(agentId: string) {
+  const configured = Number(process.env.WORKFLOW_AGENT_TIMEOUT_MS)
+  const fallback = agentId === 'market-opportunity-scanner' || agentId === 'autonomous-signal-desk'
+    ? 75_000
+    : MARKET_AGENT_IDS.has(agentId)
+      ? DEFAULT_AGENT_TIMEOUT_MS
+      : 35_000
+  return Number.isFinite(configured)
+    ? Math.max(5_000, Math.min(120_000, configured))
+    : fallback
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout>
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`))
+    }, timeoutMs)
+  })
+
+  return Promise.race([promise, timeoutPromise])
+    .finally(() => clearTimeout(timeout))
+}
+
 interface WorkflowLiveData {
   generatedAt: string
   focusArea: MarketFocusArea
@@ -263,7 +290,11 @@ async function workflowExecuteHandler(request: NextRequest) {
 
       while (retryCount <= maxRetries) {
         try {
-          output = await executeAgent(node.agentId, executionInput, node.config)
+          output = await withTimeout(
+            executeAgent(node.agentId, executionInput, node.config),
+            getAgentTimeoutMs(node.agentId),
+            agent.name
+          )
           break // Success, exit retry loop
         } catch (agentError) {
           if (isProviderRateLimit(agentError)) {

@@ -152,16 +152,16 @@ function buildKalshiMarketUrl(record: Record<string, unknown>): string | undefin
     return `https://kalshi.com/markets/${eventSlug}/${marketSlug}`
   }
 
-  if (eventTicker && ticker) {
-    return `https://kalshi.com/markets/${eventTicker}/${ticker}`
+  if (eventTicker) {
+    return `https://kalshi.com/markets/${eventTicker}`
   }
 
-  if (seriesTicker && ticker) {
-    return `https://kalshi.com/markets/${seriesTicker}/${ticker}`
+  if (seriesTicker) {
+    return `https://kalshi.com/markets/${seriesTicker}`
   }
 
   if (ticker) {
-    return `https://external-api.kalshi.com/trade-api/v2/markets/${ticker}`
+    return `https://kalshi.com/markets?search=${encodeURIComponent(ticker)}`
   }
 
   return undefined

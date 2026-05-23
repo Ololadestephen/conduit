@@ -891,9 +891,9 @@ function buildBestAvailableOpportunity(
   const displayedScore = Math.min(69, Math.round(score))
   const estimatedModelProbability = clampProbability(candidate.yesPrice + screeningEdge, candidate.yesPrice)
   const source = context?.sources.find((item) => isHighCredibilitySource(item.url)) || context?.sources[0]
-  const riskMultiplier = riskTolerance === 'high' ? 0.35 : riskTolerance === 'low' ? 0.12 : 0.22
+  const riskMultiplier = riskTolerance === 'high' ? 0.5 : riskTolerance === 'low' ? 0.2 : 0.35
   const suggestedSizePct = Number(Math.max(0.1, Math.min(
-    riskTolerance === 'high' ? 2 : riskTolerance === 'low' ? 0.5 : 1,
+    riskTolerance === 'high' ? 2.5 : riskTolerance === 'low' ? 0.75 : 1.5,
     screeningEdge * 100 * riskMultiplier
   )).toFixed(2))
   const suggestedSizeUsdc = Number(((bankroll * suggestedSizePct) / 100).toFixed(2))
@@ -913,7 +913,7 @@ function buildBestAvailableOpportunity(
     sourceQuality: evidence.sourceQuality,
     catalyst,
     source: source?.title || candidate.platform,
-    fairProbabilityMethod: 'Fair-probability desk model: start with the live exchange price, apply only named catalyst adjustments, haircut for source confidence and liquidity, then keep the result as screening unless the adjusted edge clears the configured threshold.',
+    fairProbabilityMethod: 'Desk model: start with the live market price, adjust only for named catalysts, haircut for liquidity/source quality, and keep the result as scout-level until confirmation improves.',
     fairProbabilityModel: buildFairProbabilityModel({
       marketProbability: candidate.yesPrice,
       estimatedModelProbability,
@@ -949,10 +949,10 @@ function buildBestAvailableOpportunity(
       `Best available scout pick from the live ${candidate.platform} feed.`,
       `Exact price ${(candidate.yesPrice * 100).toFixed(1)}%; liquidity ${liquidity}.`,
       `${evidence.note}`,
-      `Conservative scout size: ${suggestedSizePct.toFixed(2)}% of bankroll.`,
-      'Treat as a screening recommendation until a stronger catalyst confirms the edge.',
+      `Suggested scout size: ${suggestedSizePct.toFixed(2)}% of bankroll.`,
+      'Keep it scout-sized until a stronger catalyst confirms the edge.',
     ].join(' '),
-    edgeBasis: `Scout quality score ${displayedScore}/100 from catalyst, source quality, liquidity, and tradability. No model-confirmed edge is claimed until a transparent fair-probability model supports the gap.`,
+    edgeBasis: `Scout quality score ${displayedScore}/100 from catalyst, source quality, liquidity, and tradability. Requires stronger fair-probability confirmation before full-size trade.`,
   }
 }
 

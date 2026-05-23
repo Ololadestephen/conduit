@@ -340,7 +340,7 @@ function EvSizingGauge({
           <ProbabilityBar label="Fair / reference probability" value={modelProbability} tone="accent" />
         </div>
         <div className="border border-border bg-card p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Kelly allocation</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Recommended allocation</p>
           <p className="mt-2 font-serif text-4xl font-semibold leading-none">{sizePct.toFixed(2)}%</p>
           <div className="mt-3 h-2 border border-border bg-background">
             <div className="h-full bg-accent" style={{ width: `${Math.max(0, Math.min(100, sizePct * 10))}%` }} />
@@ -1423,7 +1423,7 @@ export default function WorkflowRunResultPage() {
                         ].filter(([, value]) => typeof value === 'string' && value).map(([label, value]) => (
                           <div key={String(label)} className="border border-border bg-background p-3">
                             <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{String(label)}</p>
-                            <p className="mt-2 text-sm leading-6 text-muted-foreground">{String(value)}</p>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">{truncateText(value, 360)}</p>
                           </div>
                         ))}
                       </div>
@@ -1433,25 +1433,25 @@ export default function WorkflowRunResultPage() {
                     {typeof opportunity.catalyst === 'string' && opportunity.catalyst && (
                       <div className="border border-border bg-card p-3">
                         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Catalyst</p>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{opportunity.catalyst}</p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{truncateText(opportunity.catalyst, 460)}</p>
                       </div>
                     )}
                     {typeof opportunity.fairProbabilityMethod === 'string' && opportunity.fairProbabilityMethod && (
                       <div className="border border-border bg-card p-3">
                         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Fair Method</p>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{opportunity.fairProbabilityMethod}</p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{truncateText(opportunity.fairProbabilityMethod, 360)}</p>
                       </div>
                     )}
                     {typeof opportunity.slowToPriceReason === 'string' && opportunity.slowToPriceReason && (
                       <div className="border border-border bg-card p-3">
                         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Slow to Price</p>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{opportunity.slowToPriceReason}</p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{truncateText(opportunity.slowToPriceReason, 360)}</p>
                       </div>
                     )}
                     {typeof opportunity.failureMode === 'string' && opportunity.failureMode && (
                       <div className="border border-border bg-card p-3">
                         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Failure Mode</p>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{opportunity.failureMode}</p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{truncateText(opportunity.failureMode, 360)}</p>
                       </div>
                     )}
                   </div>
